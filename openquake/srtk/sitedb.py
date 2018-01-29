@@ -325,6 +325,9 @@ class Site1D(object):
             else:
                 self.add_model(model, index)
 
+        # Update average
+        self.model_average()
+
     # -------------------------------------------------------------------------
 
     def model_average(self):
