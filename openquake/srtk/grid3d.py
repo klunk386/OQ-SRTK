@@ -80,7 +80,11 @@ class GeoGrid(object):
             self.geo[gk] = []
 
             for layer in model.T:
-                self.geo[gk].append(_griddata(point, layer,
-                                    (self.gx, self.gy), method=method))
+                data = _griddata(point,
+                                 layer,
+                                 (self.gx, self.gy),
+                                 method=method, rescale=True)
+                self.geo[gk].append(data)
+
 
 
