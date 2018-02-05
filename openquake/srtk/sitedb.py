@@ -25,6 +25,7 @@ Module containing the database classes to handle site information.
 """
 
 import numpy as _np
+import scipy as _scp
 import openquake.srtk.soil as _avg
 import openquake.srtk.response as _amp
 import openquake.srtk.utils as _ut
@@ -230,7 +231,7 @@ class Site1D(object):
         self.head['id'] = id
         self.head['x'] = x
         self.head['y'] = y
-        self.head['z'] = x
+        self.head['z'] = z
 
         self.freq = []
         self.model = []
@@ -624,3 +625,114 @@ class Site1D(object):
         fn = _amp.resonance_frequency(self.freq,
                                       self.mean.amp['shtf'][0])
         self.mean.amp['fn'] = fn
+
+
+# =============================================================================
+
+class Grid2D(object):
+    """
+    Base class for creating a pseudo-3d model using
+    a 2d grid of one-dimensional site profiles
+    """
+
+    def __init__(self):
+
+        self.x = 0
+        self.y = 0
+        self.gx = 0
+        self.gy = 0
+        self.gz = 0.
+
+        self._geo_init()
+
+    def _geo_init(self):
+        self.geo = {}
+        for K in GEO_KEYS:
+            self.geo[K] = []
+
+    # -------------------------------------------------------------------------
+
+    def set_grid(self, xlim, ylim, dx=1., dy=1.):
+        """
+        Create the 2D grid to interpolate single
+        site models
+
+        :param list xlim:
+            x axis range (minimum, maximum)
+
+        :param list ylim:
+            y axis range (minimum, maximum)
+
+        :param float dx:
+            increment on the x axis (default is 1.)
+
+        :param float dy:
+            increment on the y axis (default is 1.)
+        """
+
+        self.x = _np.arange(xlim[0], xlim[1]+dx, dx)
+        self.y = _np.arange(ylim[0], ylim[1]+dy, dy)
+        self.gx, self.gy = _np.meshgrid(self.x, self.y)
+
+    # -------------------------------------------------------------------------
+
+    def import_sites(self, site_list, method='cubic'):
+        """
+        Import a list of 1D sites and perform inetrpolation
+        of the (mean) models ober the 2D grid
+        Note: All sites must have the same number of layers
+
+        :param list site_list:
+            list of Site1D objects
+
+        :param string method:
+            interpolation method (default is cubic)
+        """
+
+        self._geo_init()
+
+        h_crd = []
+        v_crd = []
+        
+        for site in site_list:
+            h_crd.append((site.head['x'], site.head['y']))
+            v_crd.append(site.head['z'])
+
+        self.gz = _scp.interpolate.griddata(h_crd,
+                                            v_crd,
+                                            (self.gx, self.gy),
+                                            method=method,
+                                            rescale=True)
+
+        for K in GEO_KEYS:
+            model = [s.mean.geo[K][0] for s in site_list]
+
+            for layer in _np.array(model).T:
+                data = _scp.interpolate.griddata(h_crd,
+                                                 layer,
+                                                 (self.gx, self.gy),
+                                                 method=method,
+                                                 rescale=True)
+                self.geo[K].append(data)
+
+    # -------------------------------------------------------------------------
+
+    def export_sites(self):
+        """
+        """
+        rows = self.gz.shape[0]
+        cols = self.gz.shape[1]
+        sites = []
+
+        for i in range(0, rows):
+            for j in range(0, cols):
+                site = Site1D(x=self.gx[i,j],
+                              y=self.gy[i,j],
+                              z=self.gz[i,j])
+                sites.append(site)
+
+        return sites
+
+
+
+
