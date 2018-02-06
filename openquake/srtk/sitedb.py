@@ -719,6 +719,10 @@ class Grid2D(object):
 
     def export_sites(self):
         """
+        Export the pseudo-3D model as a list of 1D sites
+
+        :return list sites:
+            list of Site1D objects
         """
         rows = self.gz.shape[0]
         cols = self.gz.shape[1]
@@ -729,6 +733,11 @@ class Grid2D(object):
                 site = Site1D(x=self.gx[i,j],
                               y=self.gy[i,j],
                               z=self.gz[i,j])
+                site.add_model()
+                for K in GEO_KEYS:
+                    data = [d[i][j] for d in self.geo[K]]
+                    site.model[0].geo[K] = _np.array(data)
+
                 sites.append(site)
 
         return sites
