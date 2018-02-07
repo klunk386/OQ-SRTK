@@ -691,19 +691,21 @@ class Grid2D(object):
 
         self._geo_init()
 
+        # Extracting coordinates form know points
         h_crd = []
         v_crd = []
-        
         for site in site_list:
             h_crd.append((site.head['x'], site.head['y']))
             v_crd.append(site.head['z'])
 
+        # Interpolating topography
         self.gz = _scp.interpolate.griddata(h_crd,
                                             v_crd,
                                             (self.gx, self.gy),
                                             method=method,
                                             rescale=True)
 
+        # Model interpolation
         for K in GEO_KEYS:
             model = [s.mean.geo[K][0] for s in site_list]
 
@@ -717,31 +719,68 @@ class Grid2D(object):
 
     # -------------------------------------------------------------------------
 
-    def export_sites(self):
+    def export_sites(self, ix=[], iy=[]):
         """
-        Export the pseudo-3D model as a list of 1D sites
+        Export the pseudo-3D model as a list of 1D sites;
+        Grid indexes can be specificed. If not, the whole
+        grid is exported
+
+        :param int or list ix:
+            optional grid index of the x axis
+
+        :param int or list iy:
+            optional grid index of the y axis
 
         :return list sites:
             list of Site1D objects
         """
-        rows = self.gz.shape[0]
-        cols = self.gz.shape[1]
+
+        # Convert to list if integer index
+        if not isinstance(ix, list):
+            ix = [ix]
+        if not isinstance(iy, list):
+            iy = [iy]
+
+        # If index not provided, using the whole grid
+        if not ix:
+            ix = range(0, self.gz.shape[1])
+        if not iy:
+            iy = range(0, self.gz.shape[0])
+
+        # Extracting sites from indexes
         sites = []
-
-        for i in range(0, rows):
-            for j in range(0, cols):
-                site = Site1D(x=self.gx[i,j],
-                              y=self.gy[i,j],
-                              z=self.gz[i,j])
-                site.add_model()
-                for K in GEO_KEYS:
-                    data = [d[i][j] for d in self.geo[K]]
-                    site.model[0].geo[K] = _np.array(data)
-
+        for i in ix:
+            for j in iy:
+                site = Site1D(x=self.gx[j,i],
+                              y=self.gy[j,i],
+                              z=self.gz[j,i])
+                site.add_model(self.extract_model(i, j))
+                site.model_average()
                 sites.append(site)
 
         return sites
 
+    # -------------------------------------------------------------------------
 
+    def extract_model(self, ix, iy):
+        """
+        Extract a single model profile from the pseudo-3d grid
+
+        :param int ix:
+            grid index of the x axis
+
+        :param int iy:
+            grid index of the y axis
+
+        :return Model model:
+            the extracted Model object
+        """
+
+        model = Model()
+        for K in GEO_KEYS:
+            data = [d[iy][ix] for d in self.geo[K]]
+            model.geo[K] = _np.array(data)
+
+        return model
 
 
