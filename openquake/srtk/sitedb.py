@@ -194,27 +194,30 @@ class Model(object):
                     else:
                         layer = {k: float(d) for k, d in zip(header, data)}
                         self.add_layer(layer)
-
             f.close()
 
     # -------------------------------------------------------------------------
 
-    def to_file(self, ascii_file, header=[], delimiter=','):
+    def to_file(self, ascii_file, keys=GEO_KEYS, delimiter=',', mode='w'):
         """
         """
 
-        # Open input ascii file
+        if not isinstance(keys, list):
+            keys = [keys]
+
         try:
-            f = open(ascii_file, 'w')
+            f = open(ascii_file, mode)
 
         except:
             print('Error: Wrong file or file path')
             return
 
         else:
-            geo = _np.array([self.geo[k] for k in GEO_KEYS])
+            geo = _np.array([self.geo[k] for k in keys])
             for layer in _np.transpose(geo):
-                print delimiter.join([str(l) for l in layer])
+                f.write(delimiter.join([str(l) for l in layer]))
+                f.write('\n')
+            f.close()
 
 # =============================================================================
 
@@ -782,5 +785,49 @@ class Grid2D(object):
             model.geo[K] = _np.array(data)
 
         return model
+
+    # -------------------------------------------------------------------------
+
+    def to_ascii(self, ascii_file, keys=GEO_KEYS):
+        """
+        """
+
+        if not isinstance(keys, list):
+            keys = [keys]
+
+        try:
+            f = open(ascii_file, 'w')
+
+        except:
+            print('Error: Wrong file or file path')
+            return
+
+        else:
+            nx = self.gz.shape[1]
+            ny = self.gz.shape[0]
+            nl = len(self.geo['hl'])
+
+            # Printing grid size (including number of layers)
+            f.write('{0},{1},{2}\n'.format(nx, ny, nl))
+
+            # Loop over grid points
+
+            for i in range(0, nx):
+                for j in range(0, ny):
+
+                    # Point coordinates
+                    data = []
+                    data.append(self.gx[j,i])
+                    data.append(self.gy[j,i])
+
+                    # Loop over site properties and layer
+                    for k in keys:
+                        for l in range(0, nl):
+                            data.append(self.geo[k][l][j,i])
+
+                    f.write(','.join([str(d) for d in data]))
+                    f.write('\n')
+            f.close()
+
 
 
