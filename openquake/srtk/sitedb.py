@@ -198,7 +198,9 @@ class Model(object):
 
     # -------------------------------------------------------------------------
 
-    def to_file(self, ascii_file, keys=GEO_KEYS, delimiter=',', mode='w'):
+    def to_file(self, ascii_file, keys=GEO_KEYS,
+                delimiter=',', mode='w',
+                write_header=True, write_length=False):
         """
         """
 
@@ -213,9 +215,15 @@ class Model(object):
             return
 
         else:
+            if write_header:
+                f.write(delimiter.join(keys))
+                f.write('\n')
+            if write_length:
+                f.write('{0}\n'.format(len(self.geo['hl'])))
             geo = _np.array([self.geo[k] for k in keys])
             for layer in _np.transpose(geo):
-                f.write(delimiter.join([str(l) for l in layer]))
+                values = [str(l) if not _np.isnan(l) else '0' for l in layer]
+                f.write(delimiter.join(values))
                 f.write('\n')
             f.close()
 
@@ -640,8 +648,6 @@ class Grid2D(object):
 
     def __init__(self):
 
-        self.x = 0
-        self.y = 0
         self.gx = 0
         self.gy = 0
         self.gz = 0.
@@ -673,9 +679,9 @@ class Grid2D(object):
             increment on the y axis (default is 1.)
         """
 
-        self.x = _np.arange(xlim[0], xlim[1]+dx, dx)
-        self.y = _np.arange(ylim[0], ylim[1]+dy, dy)
-        self.gx, self.gy = _np.meshgrid(self.x, self.y)
+        x = _np.arange(xlim[0], xlim[1]+dx, dx)
+        y = _np.arange(ylim[0], ylim[1]+dy, dy)
+        self.gx, self.gy = _np.meshgrid(x, y)
 
     # -------------------------------------------------------------------------
 
@@ -795,14 +801,8 @@ class Grid2D(object):
         if not isinstance(keys, list):
             keys = [keys]
 
-        try:
-            f = open(ascii_file, 'w')
+        with open(ascii_file, 'w') as f:
 
-        except:
-            print('Error: Wrong file or file path')
-            return
-
-        else:
             nx = self.gz.shape[1]
             ny = self.gz.shape[0]
             nl = len(self.geo['hl'])
@@ -827,7 +827,6 @@ class Grid2D(object):
 
                     f.write(','.join([str(d) for d in data]))
                     f.write('\n')
-            f.close()
 
 
 
